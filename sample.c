@@ -2,6 +2,34 @@
 
 #include <math.h>
 #include <sys/prctl.h>
+
+static char *py_get_threading_name() {
+   PyObject *thrName = PyUnicode_DecodeFSDefault("threading");
+   PyObject *thrMod = PyImport_Import(thrName);
+   Py_DECREF(thrName);
+
+   if (thrMod != NULL) {
+      PyObject *curThreadFunc = PyObject_GetAttrString(thrMod, "current_thread");
+      if (curThreadFunc && PyCallable_Check(curThreadFunc)) {
+         PyObject *currentThread = PyObject_CallObject(curThreadFunc, NULL);
+         if (currentThread != NULL) {
+            PyObject *curThreadName = PyObject_GetAttrString(currentThread, "name");
+            if (curThreadName != NULL) {
+               return PyUnicode_AsUTF8(curThreadName);
+            }
+            Py_DECREF(currentThread);
+         }
+      }
+      Py_DECREF(curThreadFunc);
+      Py_DECREF(thrMod);
+   }
+   return NULL;
+}
+
+static PyObject *py_get_threading_module_name(PyObject *self, PyObject* args){
+   return Py_BuildValue("s", py_get_threading_name());
+}
+
 static PyObject *py_get_thread_name(PyObject *self, PyObject* args){
    char tname[16] = {0};
    prctl(PR_GET_NAME, tname);
@@ -75,6 +103,7 @@ static PyMethodDef SampleMethods[] = {
   {"in_mandel", py_in_mandel, METH_VARARGS, "Mandelbrot test"},
   {"divide", py_divide, METH_VARARGS, "Integer division"},
   {"get_thread_name", py_get_thread_name, METH_VARARGS, "Get thread name"},
+  {"get_threading_module_name", py_get_threading_module_name, METH_VARARGS, "Get threading module name"},
   {"get_string_length", py_get_string_length, METH_VARARGS, "Get string length"},
   {"get_multi_length", py_get_multi_length, METH_VARARGS, "Get multi string length"},
   {"set_thread_name", py_set_thread_name, METH_VARARGS, "Set thread name"},
